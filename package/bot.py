@@ -38,7 +38,7 @@ class Bot(discord.Client):
             print(f"{user_name}, id: {user_id}")
 
     async def timer_gleich(self, user_id, channel):
-        seconds = 30
+        seconds = 300
         current_time_step = time.time()
         if seconds > 60 * 5:
             time_string = f"```diff\n+\"[{time.strftime('%H:%M:%S', time.gmtime(seconds))}]\"```"
@@ -71,8 +71,10 @@ class Bot(discord.Client):
         return embed
 
     async def timer_loop(self):
+        # TODO join timers in one message per channel for fewer request to handle for discord
         while len(self.running_timers) > 0:
-            print(len(self.running_timers))
+            start_time = time.time()
+            print(f"running timers: {len(self.running_timers)}")
             for index, (message, user_id, timer_type, seconds, last_time_step) in enumerate(self.running_timers):
                 current_time_step = time.time()
                 time_diff = current_time_step - last_time_step
@@ -94,5 +96,8 @@ class Bot(discord.Client):
                         time_string
                     )
                 )
-            await asyncio.sleep(1)
+            time_taken = time.time() - start_time
+            print(f"time taken: {time_taken}")
+            if time_taken < 1:
+                await asyncio.sleep(2-time_taken)
 
