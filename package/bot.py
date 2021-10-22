@@ -7,11 +7,6 @@ import time
 class Bot(discord.Client):
     def __init__(self, **options):
         super().__init__(**options)
-        self.user_id_map = {
-            268818289285660672: "Linus",
-            381165265909448708: "lennart",
-            424544430154973184: "Tim",
-        }
         self.running_timers = []
         self.timer_loop_task = None
 
@@ -19,7 +14,6 @@ class Bot(discord.Client):
         print('Logged on as', self.user)
 
     async def on_message(self, message):
-        user_id = message.author.id
         user_name = message.author
         content = message.content
         channel = message.channel
@@ -30,14 +24,33 @@ class Bot(discord.Client):
         if content.strip()[0] == "!":  # Commands
             await channel.send("Not Impl")
 
-        if user_id in self.user_id_map.keys():
+        if content.find("?") == -1:  # ? is an exclude sign for the message
             if content.find("gleich") != -1:
-                await self.timer(channel, user_id, "gleich", 600)
+                await self.timer(channel, user_name, "gleich", 60*15)
+            elif content.find("später") != -1:
+                await self.timer(channel, user_name, "später", 60*120)
+            elif content.find("min") != -1:
+                times = [int(s) for s in content.split("min")[0][-4:].split() if s.isdigit()]
+                if len(times) > 0:
+                    await self.timer(channel, user_name, f"{times[-1]}min", 60 * times[-1])
+            elif content.find("sec") != -1:
+                times = [int(s) for s in content.split("sec")[0][-4:].split() if s.isdigit()]
+                if len(times) > 0:
+                    await self.timer(channel, user_name, f"{times[-1]} sec", times[-1])
+                elif content.find(" sec ") != -1 or content == "sec":
+                    await self.timer(channel, user_name, f"{1} sec", 1)
 
         else:
-            print(f"{user_name}, id: {user_id}")
+            print(f"{user_name}, id: {user_name}")
 
-    async def timer(self, channel, user_id, timer_type, seconds, edit=False):
+    async def on_reaction_add(self, reaction, user):
+        if user != self.user:
+            if any(reaction.message in e for e in self.running_timers):
+                for i, e in enumerate(self.running_timers):
+                    if reaction.message == e[0]:
+                        self.running_timers.pop(i)
+
+    async def timer(self, channel, user_name, timer_type, seconds, edit=False):
         current_time_step = time.time()
         if seconds > 60 * 5:
             time_string = f"```diff\n+\"[{time.strftime('%H:%M:%S', time.gmtime(seconds))}]\"```"
@@ -46,15 +59,16 @@ class Bot(discord.Client):
         elif seconds > 0:
             time_string = f"```fix\n+\"[{time.strftime('%H:%M:%S', time.gmtime(seconds))}]\"```"
         else:
-            time_string = f"```css\n+\"[{time.strftime('%H:%M:%S', time.gmtime(seconds*-1))}]\"```"
+            time_string = f"```css\n+\"[-{time.strftime('%H:%M:%S', time.gmtime(seconds*-1))}]\"```"
         if not edit:
             message = await channel.send(
                 embed=self.normal_message_embed(
-                    f"{self.user_id_map[user_id]}: {timer_type}",
+                    f"{str(user_name).split('#')[0]}: {timer_type}",
                     time_string
                 )
             )
-            self.running_timers.append((message, user_id, timer_type, seconds, current_time_step))
+            await message.add_reaction("✅")
+            self.running_timers.append((message, user_name, timer_type, seconds, current_time_step))
             if not self.timer_loop_task:
                 self.timer_loop_task = asyncio.create_task(self.timer_loop())
                 await self.timer_loop_task
@@ -62,7 +76,7 @@ class Bot(discord.Client):
         else:
             await channel.edit(
                 embed=self.normal_message_embed(
-                    f"{self.user_id_map[user_id]}: {timer_type}",
+                    f"{str(user_name).split('#')[0]}: {timer_type}",
                     time_string
                 )
             )
@@ -82,12 +96,12 @@ class Bot(discord.Client):
         while len(self.running_timers) > 0:
             start_time = time.time()
             print(f"running timers: {len(self.running_timers)}")
-            for index, (message, user_id, timer_type, seconds, last_time_step) in enumerate(self.running_timers):
+            for index, (message, user_name, timer_type, seconds, last_time_step) in enumerate(self.running_timers):
                 current_time_step = time.time()
                 time_diff = current_time_step - last_time_step
                 seconds -= time_diff
-                self.running_timers[index] = (message, user_id, timer_type, seconds, current_time_step)
-                await self.timer(message, user_id, timer_type, seconds, edit=True)
+                self.running_timers[index] = (message, user_name, timer_type, seconds, current_time_step)
+                await self.timer(message, user_name, timer_type, seconds, edit=True)
             time_taken = time.time() - start_time
             print(f"time taken: {time_taken}")
             if time_taken < 1:
