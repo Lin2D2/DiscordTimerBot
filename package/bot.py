@@ -21,27 +21,31 @@ class Bot(discord.Client):
         if user_name == self.user:
             return
 
-        if content.strip()[0] == "!":  # Commands
-            await channel.send("Not Impl")
+        try:
+            if content.strip()[0] == "!":  # Commands
+                await channel.send("Not Impl")
 
-        if content.find("?") == -1:  # ? is an exclude sign for the message
-            if content.find("gleich") != -1:
-                await self.timer(channel, user_name, "gleich", 60*15)
-            elif content.find("später") != -1:
-                await self.timer(channel, user_name, "später", 60*120)
-            elif content.find("min") != -1:
-                times = [int(s) for s in content.split("min")[0][-4:].split() if s.isdigit()]
-                if len(times) > 0:
-                    await self.timer(channel, user_name, f"{times[-1]}min", 60 * times[-1])
-            elif content.find("sec") != -1:
-                times = [int(s) for s in content.split("sec")[0][-4:].split() if s.isdigit()]
-                if len(times) > 0:
-                    await self.timer(channel, user_name, f"{times[-1]} sec", times[-1])
-                elif content.find(" sec ") != -1 or content == "sec":
-                    await self.timer(channel, user_name, f"{1} sec", 1)
+            if content.find("?") == -1:  # ? is an exclude sign for the message
+                if content.find("gleich") != -1:
+                    await self.timer(channel, user_name, "gleich", 60*15)
+                elif content.find("später") != -1:
+                    await self.timer(channel, user_name, "später", 60*120)
+                elif content.find("min") != -1:
+                    times = [int(s) for s in content.split("min")[0][-4:].split() if s.isdigit()]
+                    if len(times) > 0:
+                        await self.timer(channel, user_name, f"{times[-1]}min", 60 * times[-1])
+                elif content.find("sec") != -1:
+                    times = [int(s) for s in content.split("sec")[0][-4:].split() if s.isdigit()]
+                    if len(times) > 0:
+                        await self.timer(channel, user_name, f"{times[-1]} sec", times[-1])
+                    elif content.find(" sec ") != -1 or content == "sec":
+                        await self.timer(channel, user_name, f"{1} sec", 1)
 
-        else:
-            print(f"{user_name}, id: {user_name}")
+            else:
+                print(f"{user_name}, id: {user_name}")
+        except Exception as error:
+            print(f"error on message: {message}, error: {error}")
+            channel.send(f"error! On Message: {message} by {user_name}")
 
     async def on_reaction_add(self, reaction, user):
         if user != self.user:
@@ -97,11 +101,14 @@ class Bot(discord.Client):
             start_time = time.time()
             print(f"running timers: {len(self.running_timers)}")
             for index, (message, user_name, timer_type, seconds, last_time_step) in enumerate(self.running_timers):
-                current_time_step = time.time()
-                time_diff = current_time_step - last_time_step
-                seconds -= time_diff
-                self.running_timers[index] = (message, user_name, timer_type, seconds, current_time_step)
-                await self.timer(message, user_name, timer_type, seconds, edit=True)
+                try:
+                    current_time_step = time.time()
+                    time_diff = current_time_step - last_time_step
+                    seconds -= time_diff
+                    self.running_timers[index] = (message, user_name, timer_type, seconds, current_time_step)
+                    await self.timer(message, user_name, timer_type, seconds, edit=True)
+                except Exception as error:
+                    print(f"error in timer loop: {error}")
             time_taken = time.time() - start_time
             print(f"time taken: {time_taken}")
             if time_taken < 1:
